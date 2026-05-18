@@ -29,6 +29,12 @@ import org.rust.cargo.toolchain.CargoCommandLine
 
 enum class FlintMode { SELECTED, ALL }
 
+/** Cargo build profile. `flint` is required for flint-steel to compile. */
+enum class FlintProfile(val cargoName: String) {
+    FLINT("flint"),
+    DEV("dev"),
+}
+
 /**
  * Prepares the managed flint-steel clone (checkout, cargo patch, attach) then
  * delegates to the `com.jetbrains.rust` Cargo runner so Run and Debug (native
@@ -42,6 +48,7 @@ class FlintRunConfiguration(
 ) : LocatableConfigurationBase<RunProfileState>(project, factory, name) {
 
     var mode: FlintMode = FlintMode.SELECTED
+    var profile: FlintProfile = FlintProfile.FLINT
     var version: String = "latest"
 
     /** Optional run-config overrides (blank = inherit menu defaults). */
@@ -97,7 +104,11 @@ class FlintRunConfiguration(
             FlintMode.SELECTED -> "test_run_flint_selected"
             FlintMode.ALL -> "test_run_all_flint_benchmarks"
         }
-        val args = listOf("--lib", entrypoint, "--no-fail-fast", "--", "--nocapture")
+        val args = listOf(
+            "--lib", entrypoint,
+            "--profile", profile.cargoName,
+            "--no-fail-fast", "--", "--nocapture",
+        )
         val env = EnvironmentVariablesData.create(buildEnv(settings), true)
 
         val cmd = CargoCommandLine(
@@ -139,6 +150,7 @@ class FlintRunConfiguration(
     override fun writeExternal(element: Element) {
         super.writeExternal(element)
         JDOMExternalizerUtil.writeField(element, "mode", mode.name)
+        JDOMExternalizerUtil.writeField(element, "profile", profile.name)
         JDOMExternalizerUtil.writeField(element, "version", version)
         JDOMExternalizerUtil.writeField(element, "overrideTags", overrideTags)
         JDOMExternalizerUtil.writeField(element, "overrideTest", overrideTest)
@@ -153,6 +165,8 @@ class FlintRunConfiguration(
         super.readExternal(element)
         mode = runCatching { FlintMode.valueOf(JDOMExternalizerUtil.readField(element, "mode", "SELECTED")) }
             .getOrDefault(FlintMode.SELECTED)
+        profile = runCatching { FlintProfile.valueOf(JDOMExternalizerUtil.readField(element, "profile", "FLINT")) }
+            .getOrDefault(FlintProfile.FLINT)
         version = JDOMExternalizerUtil.readField(element, "version", "latest")
         overrideTags = JDOMExternalizerUtil.readField(element, "overrideTags", "")
         overrideTest = JDOMExternalizerUtil.readField(element, "overrideTest", "")

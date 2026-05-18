@@ -17,6 +17,7 @@ class FlintRunConfigurationEditor(private val project: Project) :
     SettingsEditor<FlintRunConfiguration>() {
 
     private val modeCombo = ComboBox(DefaultComboBoxModel(FlintMode.values()))
+    private val profileCombo = ComboBox(DefaultComboBoxModel(FlintProfile.values()))
     private val versionCombo = ComboBox<String>(DefaultComboBoxModel(arrayOf("latest"))).apply {
         isEditable = true
     }
@@ -38,6 +39,7 @@ class FlintRunConfigurationEditor(private val project: Project) :
 
     override fun createEditor(): JComponent = panel {
         row("Mode:") { cell(modeCombo) }
+        row("Profile:") { cell(profileCombo) }
         row("Version:") {
             cell(versionCombo).align(AlignX.FILL)
             button("Reload") { loadVersions() }
@@ -65,6 +67,7 @@ class FlintRunConfigurationEditor(private val project: Project) :
 
     override fun resetEditorFrom(s: FlintRunConfiguration) {
         modeCombo.selectedItem = s.mode
+        profileCombo.selectedItem = s.profile
         versionCombo.selectedItem = s.version
         tagsField.text = s.overrideTags
         testField.text = s.overrideTest
@@ -75,6 +78,7 @@ class FlintRunConfigurationEditor(private val project: Project) :
 
     override fun applyEditorTo(s: FlintRunConfiguration) {
         s.mode = modeCombo.selectedItem as? FlintMode ?: FlintMode.SELECTED
+        s.profile = profileCombo.selectedItem as? FlintProfile ?: FlintProfile.FLINT
         s.version = (versionCombo.selectedItem as? String)?.trim().orEmpty().ifBlank { "latest" }
         s.overrideTags = tagsField.text.trim()
         s.overrideTest = testField.text.trim()
