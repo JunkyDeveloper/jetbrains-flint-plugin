@@ -11,8 +11,8 @@ dependencies {
 
     // IntelliJ Platform Gradle Plugin Dependencies Extension - read more: https://plugins.jetbrains.com/docs/intellij/tools-intellij-platform-gradle-plugin-dependencies-extension.html
     intellijPlatform {
-        rustRover(providers.gradleProperty("platformVersion"))
-        bundledPlugin("com.jetbrains.rust")
+        intellijIdea(providers.gradleProperty("platformVersion"))
+        plugin("com.jetbrains.rust", providers.gradleProperty("rustPluginVersion").get())
         testFramework(TestFrameworkType.Platform)
     }
 }

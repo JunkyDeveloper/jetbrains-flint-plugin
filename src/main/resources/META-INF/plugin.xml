@@ -11,6 +11,11 @@
     <resource-bundle>messages.MyBundle</resource-bundle>
 
     <extensions defaultExtensionNs="com.intellij">
+        <projectConfigurable
+            parentId="tools"
+            instance="com.github.junkydeveloper.jetbrainsflintplugin.settings.FlintSettingsConfigurable"
+            id="com.github.junkydeveloper.jetbrainsflintplugin.settings.FlintSettingsConfigurable"
+            displayName="Flint"/>
         <toolWindow factoryClass="com.github.junkydeveloper.jetbrainsflintplugin.toolWindow.MyToolWindowFactory" id="MyToolWindow"/>
         <postStartupActivity implementation="com.github.junkydeveloper.jetbrainsflintplugin.startup.MyProjectActivity" />
     </extensions>
