@@ -6,14 +6,15 @@ import com.github.junkydeveloper.jetbrainsflintplugin.services.FlintSteelManager
 import com.github.junkydeveloper.jetbrainsflintplugin.services.SteelResolution
 import com.github.junkydeveloper.jetbrainsflintplugin.services.SteelWorkspaceResolver
 import com.github.junkydeveloper.jetbrainsflintplugin.settings.FlintSettings
+import com.intellij.execution.ExecutionTargetManager
 import com.intellij.execution.Executor
-import com.intellij.execution.ProgramRunnerUtil
 import com.intellij.execution.RunManager
 import com.intellij.execution.configuration.EnvironmentVariablesData
 import com.intellij.execution.configurations.ConfigurationFactory
 import com.intellij.execution.configurations.LocatableConfigurationBase
 import com.intellij.execution.configurations.RunProfileState
 import com.intellij.execution.runners.ExecutionEnvironment
+import com.intellij.execution.runners.ExecutionEnvironmentBuilder
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.application.ApplicationManager
@@ -25,6 +26,8 @@ import com.intellij.openapi.util.JDOMExternalizerUtil
 import org.jdom.Element
 import org.rust.cargo.project.model.CargoProjectsService
 import org.rust.cargo.runconfig.createCargoCommandRunConfiguration
+import org.rust.cargo.runconfig.profiles.CargoBuildProfile
+import org.rust.cargo.runconfig.profiles.RsDefaultProfileExecutionTarget
 import org.rust.cargo.toolchain.CargoCommandLine
 
 enum class FlintMode { SELECTED, ALL }
@@ -59,19 +62,12 @@ class FlintRunConfiguration(
 
     override fun getConfigurationEditor() = FlintRunConfigurationEditor(project)
 
-    override fun getState(executor: Executor, environment: ExecutionEnvironment): RunProfileState? {
-        ApplicationManager.getApplication().executeOnPooledThread {
-            try {
-                launch(executor)
-            } catch (e: Exception) {
-                thisLogger().warn("Flint run failed", e)
-                notify("Flint run failed", e.message ?: e.toString(), NotificationType.ERROR)
-            }
-        }
-        return null
-    }
+    // Prep + delegation is driven by FlintProgramRunner.execute (it owns both
+    // Run and Debug). getState only exists to satisfy the contract; returning
+    // null with no side-effect avoids a double-launch.
+    override fun getState(executor: Executor, environment: ExecutionEnvironment): RunProfileState? = null
 
-    private fun launch(executor: Executor) {
+    fun launchFlint(executor: Executor) {
         val manager = FlintSteelManager.getInstance(project)
         val settings = FlintSettings.getInstance(project).state
 
@@ -104,9 +100,10 @@ class FlintRunConfiguration(
             FlintMode.SELECTED -> "test_run_flint_selected"
             FlintMode.ALL -> "test_run_all_flint_benchmarks"
         }
+        // No `--profile` here: the Rust plugin owns Cargo-profile selection via
+        // the execution target picked below. Passing it twice would conflict.
         val args = listOf(
             "--lib", entrypoint,
-            "--profile", profile.cargoName,
             "--no-fail-fast", "--", "--nocapture",
         )
         val env = EnvironmentVariablesData.create(buildEnv(settings), true)
@@ -119,11 +116,46 @@ class FlintRunConfiguration(
         )
 
         ApplicationManager.getApplication().invokeLater {
-            val runManager = RunManager.getInstance(project)
-            val rc = runManager.createCargoCommandRunConfiguration(cmd, "Flint: ${mode.name.lowercase()} @ $version")
-            ProgramRunnerUtil.executeConfiguration(rc, executor)
+            try {
+                val runManager = RunManager.getInstance(project)
+                val rc = runManager.createCargoCommandRunConfiguration(
+                    cmd, "Flint: ${mode.name.lowercase()} @ $version",
+                )
+                // The Rust plugin replaces the platform `<default>` execution
+                // target with one target per Cargo profile. A transient config
+                // launched against the project's active `<default>` target
+                // fails ExecutionTargetManager.canRun. Pick the profile target
+                // explicitly instead.
+                val target = ExecutionTargetManager.getInstance(project)
+                    .getTargetsFor(rc.configuration)
+                    .firstOrNull { it is RsDefaultProfileExecutionTarget && it.matchesProfile(profile) }
+                if (target == null) {
+                    notify(
+                        "Flint: cannot run",
+                        "Cargo profile '${profile.cargoName}' is not available on the " +
+                            "flint-steel clone. Is the clone indexed? Does its Cargo.toml " +
+                            "define [profile.${profile.cargoName}]?",
+                        NotificationType.ERROR,
+                    )
+                    return@invokeLater
+                }
+                ExecutionEnvironmentBuilder.create(executor, rc)
+                    .target(target)
+                    .buildAndExecute()
+            } catch (e: Exception) {
+                thisLogger().warn("Flint delegate launch failed", e)
+                notify("Flint run failed", e.message ?: e.toString(), NotificationType.ERROR)
+            }
         }
     }
+
+    /** True if this Rust profile target's Cargo profile matches [profile]. */
+    private fun RsDefaultProfileExecutionTarget.matchesProfile(profile: FlintProfile): Boolean =
+        when (val bp = buildProfile) {
+            is CargoBuildProfile.CustomCargoBuildProfile -> bp.name == profile.cargoName
+            is CargoBuildProfile.DefaultCargoBuildProfile -> bp.parameter == profile.cargoName
+            else -> false
+        }
 
     /** Precedence: run-config override > menu defaults > .env (vars left unset). */
     private fun buildEnv(settings: FlintSettings.State): Map<String, String> {
@@ -156,7 +188,7 @@ class FlintRunConfiguration(
             ?: "http://${FlintVizRunConfiguration.DEFAULT_HOST}:${FlintVizRunConfiguration.DEFAULT_PORT}"
     }
 
-    private fun notify(title: String, content: String, type: NotificationType) {
+    internal fun notify(title: String, content: String, type: NotificationType) {
         NotificationGroupManager.getInstance()
             .getNotificationGroup("Flint")
             .createNotification(title, content, type)

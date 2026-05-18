@@ -23,7 +23,7 @@ class FlintCommandException(message: String) : RuntimeException(message)
 class FlintSteelManager(private val project: Project) {
 
     /** `<system>/flint-plugin/flint-steel` — shared across projects. */
-    val managedDir: Path = FlintSettings.managedSteelDir()
+    val managedDir: Path = FlintSettings.managedFlintSteelDir()
 
     private val settings get() = FlintSettings.getInstance(project).state
 
@@ -32,6 +32,14 @@ class FlintSteelManager(private val project: Project) {
     /** Clone if absent. No-op when already cloned. */
     fun ensureClone() {
         if (isCloned()) return
+        // A prior clone may have been interrupted (auth failure, cancel, the
+        // 120s timeout), leaving a non-empty dir without .git. `git clone`
+        // refuses a non-empty target ("destination path already exists and is
+        // not an empty directory"), so the state never self-heals. Drop the
+        // stale dir before retrying.
+        if (Files.exists(managedDir)) {
+            managedDir.toFile().deleteRecursively()
+        }
         Files.createDirectories(managedDir.parent)
         run(
             managedDir.parent,

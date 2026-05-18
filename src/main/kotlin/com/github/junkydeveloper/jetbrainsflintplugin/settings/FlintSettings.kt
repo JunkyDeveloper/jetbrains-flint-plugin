@@ -72,11 +72,15 @@ class FlintSettings : PersistentStateComponent<FlintSettings.State> {
         fun getInstance(project: Project): FlintSettings = project.service()
 
         /** Managed flint-steel clone dir under the IDE system path. */
-        fun managedSteelDir(): Path =
+        fun managedFlintSteelDir(): Path =
             Path.of(PathManager.getSystemPath(), "flint-plugin", "flint-steel")
+
+        /** Managed flint-steel clone dir under the IDE system path. */
+        fun managedFlintPluginDir(): Path =
+            Path.of(PathManager.getSystemPath(), "flint-plugin")
 
         /** Default INDEX_NAME: absolute, inside the plugin's managed clone. */
         fun defaultIndexPath(): String =
-            managedSteelDir().resolve(".cache").resolve("index.json").toString()
+            managedFlintPluginDir().resolve(".cache").resolve("index.json").toString()
     }
 }
