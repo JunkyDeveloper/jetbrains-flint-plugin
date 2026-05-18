@@ -8,7 +8,7 @@
     <depends>com.intellij.modules.platform</depends>
     <depends>com.jetbrains.rust</depends>
 
-    <resource-bundle>messages.MyBundle</resource-bundle>
+    <resource-bundle>messages.FlintBundle</resource-bundle>
 
     <extensions defaultExtensionNs="com.intellij">
         <projectConfigurable
@@ -16,7 +16,8 @@
             instance="com.github.junkydeveloper.jetbrainsflintplugin.settings.FlintSettingsConfigurable"
             id="com.github.junkydeveloper.jetbrainsflintplugin.settings.FlintSettingsConfigurable"
             displayName="Flint"/>
-        <toolWindow factoryClass="com.github.junkydeveloper.jetbrainsflintplugin.toolWindow.MyToolWindowFactory" id="MyToolWindow"/>
-        <postStartupActivity implementation="com.github.junkydeveloper.jetbrainsflintplugin.startup.MyProjectActivity" />
+        <configurationType
+            implementation="com.github.junkydeveloper.jetbrainsflintplugin.run.FlintRunConfigurationType"/>
+        <notificationGroup id="Flint" displayType="BALLOON"/>
     </extensions>
 </idea-plugin>

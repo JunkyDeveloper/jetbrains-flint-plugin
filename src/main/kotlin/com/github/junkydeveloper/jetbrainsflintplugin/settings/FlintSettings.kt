@@ -32,6 +32,13 @@ class FlintSettings : PersistentStateComponent<FlintSettings.State> {
         var flintTags: String = ""
         var flintPattern: String = ""
         var flintVizUrl: String = ""
+
+        // Managed clone / topology
+        var flintSteelRepoUrl: String = "git@github.com:FlintTestMC/flint-steel.git"
+        var localFlintCorePath: String = ""
+
+        /** Tags selected in the menu; joined into FLINT_TAGS when flintTags is blank. */
+        var selectedTags: MutableList<String> = mutableListOf()
     }
 
     private var state = State()
@@ -51,7 +58,10 @@ class FlintSettings : PersistentStateComponent<FlintSettings.State> {
         put("DEFAULT_TAG", state.defaultTag)
         put("TEST_PATH", state.testPath)
         put("FLINT_TEST", state.flintTest)
-        put("FLINT_TAGS", state.flintTags)
+        val tags = state.flintTags.ifBlank {
+            state.selectedTags.filter { it.isNotBlank() }.joinToString(",")
+        }
+        put("FLINT_TAGS", tags)
         put("FLINT_PATTERN", state.flintPattern)
         put("FLINT_VIZ_URL", state.flintVizUrl)
     }
