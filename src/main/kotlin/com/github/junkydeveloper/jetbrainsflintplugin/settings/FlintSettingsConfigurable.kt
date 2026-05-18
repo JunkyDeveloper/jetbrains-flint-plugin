@@ -4,6 +4,7 @@ import com.github.junkydeveloper.jetbrainsflintplugin.services.FlintIndexReader
 import com.github.junkydeveloper.jetbrainsflintplugin.services.FlintSteelManager
 import com.intellij.ide.actions.RevealFileAction
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory
 import com.intellij.openapi.options.BoundConfigurable
 import com.intellij.openapi.project.Project
@@ -121,7 +122,7 @@ class FlintSettingsConfigurable(private val project: Project) :
             val error = runCatching {
                 manager.ensureClone(); manager.fetch()
             }.exceptionOrNull()
-            ApplicationManager.getApplication().invokeLater {
+            ApplicationManager.getApplication().invokeLater({
                 if (error != null) {
                     Messages.showErrorDialog(project, error.message ?: "$error", "Flint: Refresh Failed")
                 }
@@ -133,16 +134,16 @@ class FlintSettingsConfigurable(private val project: Project) :
                         "Flint: No Tags",
                     )
                 }
-            }
+            }, ModalityState.any())
         }
     }
 
     private fun cargoClean() {
         ApplicationManager.getApplication().executeOnPooledThread {
             runCatching { manager.cargoClean() }
-            ApplicationManager.getApplication().invokeLater {
+            ApplicationManager.getApplication().invokeLater({
                 Messages.showInfoMessage(project, "Removed ${manager.managedDir}/target", "Flint: Cargo Clean")
-            }
+            }, ModalityState.any())
         }
     }
 

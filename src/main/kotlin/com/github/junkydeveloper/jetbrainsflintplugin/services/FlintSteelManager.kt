@@ -4,7 +4,6 @@ import com.github.junkydeveloper.jetbrainsflintplugin.settings.FlintSettings
 import com.intellij.execution.configurations.GeneralCommandLine
 import com.intellij.execution.process.CapturingProcessHandler
 import com.intellij.execution.process.ProcessOutput
-import com.intellij.openapi.application.PathManager
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
@@ -23,8 +22,7 @@ class FlintCommandException(message: String) : RuntimeException(message)
 class FlintSteelManager(private val project: Project) {
 
     /** `<system>/flint-plugin/flint-steel` — shared across projects. */
-    val managedDir: Path =
-        Path.of(PathManager.getSystemPath(), "flint-plugin", "flint-steel")
+    val managedDir: Path = FlintSettings.managedSteelDir()
 
     private val settings get() = FlintSettings.getInstance(project).state
 
@@ -79,8 +77,11 @@ class FlintSteelManager(private val project: Project) {
         }
     }
 
-    /** `<clone>/<INDEX_NAME>` using the effective menu setting. */
-    fun indexPath(): Path = managedDir.resolve(settings.indexName)
+    /** Effective index path: absolute INDEX_NAME as-is, else relative to the clone. */
+    fun indexPath(): Path {
+        val p = Path.of(settings.indexName)
+        return if (p.isAbsolute) p else managedDir.resolve(p)
+    }
 
     private val ProcessOutput.stdoutLines: List<String>
         get() = stdout.split('\n').map { it.trim() }.filter { it.isNotEmpty() }

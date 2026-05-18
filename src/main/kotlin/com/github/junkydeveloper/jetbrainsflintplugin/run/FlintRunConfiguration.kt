@@ -89,7 +89,8 @@ class FlintRunConfiguration(
         // (enables debugging / source mapping). Best-effort.
         runCatching {
             val svc = project.service<CargoProjectsService>()
-            runBlockingCancellable { svc.attachCargoProject(manager.managedDir).await() }
+            val manifest = manager.managedDir.resolve("Cargo.toml")
+            runBlockingCancellable { svc.attachCargoProject(manifest).await() }
         }.onFailure { thisLogger().warn("attachCargoProject failed (continuing)", it) }
 
         val entrypoint = when (mode) {

@@ -5,8 +5,10 @@ import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.State
 import com.intellij.openapi.components.Storage
 import com.intellij.openapi.components.service
+import com.intellij.openapi.application.PathManager
 import com.intellij.openapi.project.Project
 import com.intellij.util.xmlb.XmlSerializerUtil
+import java.nio.file.Path
 
 /**
  * Persisted flint-steel / flint-core environment variables, applied to the
@@ -22,8 +24,8 @@ import com.intellij.util.xmlb.XmlSerializerUtil
 class FlintSettings : PersistentStateComponent<FlintSettings.State> {
 
     class State {
-        // flint-core (src/utils.rs)
-        var indexName: String = ".cache/index.json"
+        // flint-core (src/utils.rs) — default points inside the managed clone
+        var indexName: String = defaultIndexPath()
         var defaultTag: String = "default"
         var testPath: String = "./test"
 
@@ -68,5 +70,13 @@ class FlintSettings : PersistentStateComponent<FlintSettings.State> {
 
     companion object {
         fun getInstance(project: Project): FlintSettings = project.service()
+
+        /** Managed flint-steel clone dir under the IDE system path. */
+        fun managedSteelDir(): Path =
+            Path.of(PathManager.getSystemPath(), "flint-plugin", "flint-steel")
+
+        /** Default INDEX_NAME: absolute, inside the plugin's managed clone. */
+        fun defaultIndexPath(): String =
+            managedSteelDir().resolve(".cache").resolve("index.json").toString()
     }
 }
