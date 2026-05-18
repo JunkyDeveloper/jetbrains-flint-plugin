@@ -1,5 +1,7 @@
 package com.github.junkydeveloper.jetbrainsflintplugin.settings
 
+import com.github.junkydeveloper.jetbrainsflintplugin.services.FlintCommandException
+import com.github.junkydeveloper.jetbrainsflintplugin.services.FlintIndexLocator
 import com.github.junkydeveloper.jetbrainsflintplugin.services.FlintIndexReader
 import com.github.junkydeveloper.jetbrainsflintplugin.services.FlintSteelManager
 import com.intellij.ide.actions.RevealFileAction
@@ -15,6 +17,7 @@ import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.dsl.builder.AlignX
 import com.intellij.ui.dsl.builder.bindText
 import com.intellij.ui.dsl.builder.panel
+import java.nio.file.Path
 
 /**
  * Settings > Tools > Flint — project defaults: flint-steel/flint-core env
@@ -120,17 +123,21 @@ class FlintSettingsConfigurable(private val project: Project) :
     private fun refreshTags() {
         ApplicationManager.getApplication().executeOnPooledThread {
             val error = runCatching {
-                manager.ensureClone(); manager.fetch()
+                val base = project.basePath
+                    ?: throw FlintCommandException(
+                        "Open a project first — flint-index needs a project directory.",
+                    )
+                FlintIndexLocator.getInstance(project).buildIndex(Path.of(base))
             }.exceptionOrNull()
             ApplicationManager.getApplication().invokeLater({
                 if (error != null) {
                     Messages.showErrorDialog(project, error.message ?: "$error", "Flint: Refresh Failed")
                 }
                 populateTagList()
-                if (tagList.itemsCount == 0) {
+                if (error == null && tagList.itemsCount == 0) {
                     Messages.showInfoMessage(
                         project,
-                        "No index at ${manager.indexPath()} yet. Run a Flint configuration once to generate it.",
+                        "flint-index produced no tags. Check TEST_PATH (${state.testPath}) under the project base.",
                         "Flint: No Tags",
                     )
                 }

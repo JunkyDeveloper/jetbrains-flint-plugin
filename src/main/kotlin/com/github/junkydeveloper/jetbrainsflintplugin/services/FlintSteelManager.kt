@@ -7,6 +7,7 @@ import com.intellij.execution.process.ProcessOutput
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
+import com.intellij.util.EnvironmentUtil
 import java.nio.file.Files
 import java.nio.file.Path
 
@@ -87,7 +88,12 @@ class FlintSteelManager(private val project: Project) {
         get() = stdout.split('\n').map { it.trim() }.filter { it.isNotEmpty() }
 
     private fun run(workDir: Path?, vararg cmd: String): ProcessOutput {
-        val cl = GeneralCommandLine(*cmd).withCharset(Charsets.UTF_8)
+        // Merge the user's login-shell env (SSH agent socket, full PATH);
+        // an IDE launched from a desktop entry otherwise lacks these and git
+        // SSH auth fails.
+        val cl = GeneralCommandLine(*cmd)
+            .withCharset(Charsets.UTF_8)
+            .withEnvironment(EnvironmentUtil.getEnvironmentMap())
         if (workDir != null) cl.workDirectory = workDir.toFile()
         val out = CapturingProcessHandler(cl).runProcess(120_000)
         if (out.isTimeout || out.exitCode != 0) {

@@ -53,19 +53,19 @@ class FlintSettings : PersistentStateComponent<FlintSettings.State> {
 
     /** Non-blank values as an ENV_VAR -> value map for process injection. */
     fun toEnv(): Map<String, String> = buildMap {
-        fun put(key: String, value: String) {
+        fun add(key: String, value: String) {
             if (value.isNotBlank()) put(key, value)
         }
-        put("INDEX_NAME", state.indexName)
-        put("DEFAULT_TAG", state.defaultTag)
-        put("TEST_PATH", state.testPath)
-        put("FLINT_TEST", state.flintTest)
+        add("INDEX_NAME", state.indexName)
+        add("DEFAULT_TAG", state.defaultTag)
+        add("TEST_PATH", state.testPath)
+        add("FLINT_TEST", state.flintTest)
         val tags = state.flintTags.ifBlank {
             state.selectedTags.filter { it.isNotBlank() }.joinToString(",")
         }
-        put("FLINT_TAGS", tags)
-        put("FLINT_PATTERN", state.flintPattern)
-        put("FLINT_VIZ_URL", state.flintVizUrl)
+        add("FLINT_TAGS", tags)
+        add("FLINT_PATTERN", state.flintPattern)
+        add("FLINT_VIZ_URL", state.flintVizUrl)
     }
 
     companion object {

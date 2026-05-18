@@ -12,7 +12,7 @@ class FlintVizRunConfigurationType : ConfigurationTypeBase(
     ID,
     "Flint Viz",
     "Serve the flint-viz visualizer (source + 3D world + timeline)",
-    NotNullLazyValue.createValue<Icon> { com.intellij.icons.AllIcons.General.Web },
+    NotNullLazyValue.createValue<Icon> { com.github.junkydeveloper.jetbrainsflintplugin.FlintIcons.FLINT },
 ) {
     init {
         addFactory(object : ConfigurationFactory(this) {

@@ -12,7 +12,7 @@ class FlintRunConfigurationType : ConfigurationTypeBase(
     ID,
     "Flint",
     "Run flint-steel benchmarks against the open SteelMC workspace",
-    NotNullLazyValue.createValue<Icon> { com.intellij.icons.AllIcons.Actions.Execute },
+    NotNullLazyValue.createValue<Icon> { com.github.junkydeveloper.jetbrainsflintplugin.FlintIcons.FLINT },
 ) {
     init {
         addFactory(object : ConfigurationFactory(this) {
