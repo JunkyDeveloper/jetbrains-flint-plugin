@@ -24,4 +24,13 @@
             implementation="com.github.junkydeveloper.jetbrainsflintplugin.run.FlintProgramRunner"/>
         <notificationGroup id="Flint" displayType="BALLOON"/>
     </extensions>
+
+    <applicationListeners>
+        <listener
+            class="com.github.junkydeveloper.jetbrainsflintplugin.uninstall.FlintAppLifecycle"
+            topic="com.intellij.ide.AppLifecycleListener"/>
+        <listener
+            class="com.github.junkydeveloper.jetbrainsflintplugin.uninstall.FlintDynamicPluginListener"
+            topic="com.intellij.ide.plugins.DynamicPluginListener"/>
+    </applicationListeners>
 </idea-plugin>

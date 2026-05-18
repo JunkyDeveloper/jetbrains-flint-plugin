@@ -2,7 +2,9 @@ package com.github.junkydeveloper.jetbrainsflintplugin.run
 
 import com.github.junkydeveloper.jetbrainsflintplugin.services.CargoConfigConflict
 import com.github.junkydeveloper.jetbrainsflintplugin.services.CargoConfigWriter
+import com.github.junkydeveloper.jetbrainsflintplugin.services.CloneProfileInjector
 import com.github.junkydeveloper.jetbrainsflintplugin.services.FlintSteelManager
+import com.github.junkydeveloper.jetbrainsflintplugin.services.InjectResult
 import com.github.junkydeveloper.jetbrainsflintplugin.services.SteelResolution
 import com.github.junkydeveloper.jetbrainsflintplugin.services.SteelWorkspaceResolver
 import com.github.junkydeveloper.jetbrainsflintplugin.settings.FlintSettings
@@ -13,6 +15,7 @@ import com.intellij.execution.configuration.EnvironmentVariablesData
 import com.intellij.execution.configurations.ConfigurationFactory
 import com.intellij.execution.configurations.LocatableConfigurationBase
 import com.intellij.execution.configurations.RunProfileState
+import com.intellij.execution.executors.DefaultDebugExecutor
 import com.intellij.execution.runners.ExecutionEnvironment
 import com.intellij.execution.runners.ExecutionEnvironmentBuilder
 import com.intellij.notification.NotificationGroupManager
@@ -51,7 +54,8 @@ class FlintRunConfiguration(
 ) : LocatableConfigurationBase<RunProfileState>(project, factory, name) {
 
     var mode: FlintMode = FlintMode.SELECTED
-    var profile: FlintProfile = FlintProfile.FLINT
+    // Cargo profile is no longer user-selectable: it is derived from the
+    // executor in launchFlint (Run -> dev, Debug -> flint).
     var version: String = "latest"
 
     /** Optional run-config overrides (blank = inherit menu defaults). */
@@ -71,6 +75,14 @@ class FlintRunConfiguration(
         val manager = FlintSteelManager.getInstance(project)
         val settings = FlintSettings.getInstance(project).state
 
+        // Run -> dev (built-in, always present), Debug -> flint (needs the
+        // SteelMC-defined profile injected into the clone, below).
+        val profile = if (executor.id == DefaultDebugExecutor.EXECUTOR_ID) {
+            FlintProfile.FLINT
+        } else {
+            FlintProfile.DEV
+        }
+
         manager.checkout(version)
 
         when (val r = SteelWorkspaceResolver.resolve(project.basePath)) {
@@ -79,11 +91,46 @@ class FlintRunConfiguration(
                 return
             }
             is SteelResolution.Resolved -> {
+                // Profiles the clone already declares natively must not be
+                // re-emitted (a second [profile.x] is a fatal cargo error,
+                // both within Cargo.toml and across Cargo.toml/config.toml).
+                val nativeProfiles = CloneProfileInjector.existingProfiles(manager.managedDir)
+                val closure = if (profile == FlintProfile.FLINT) {
+                    SteelWorkspaceResolver.profileClosure(r.profileBlocks, profile.cargoName)
+                } else {
+                    emptyMap()
+                }
+                val toEmit = closure.filterKeys { it !in nativeProfiles }
+
                 try {
-                    CargoConfigWriter.write(manager.managedDir, r.crates, settings.localFlintCorePath)
+                    CargoConfigWriter.write(
+                        manager.managedDir, r.crates, settings.localFlintCorePath, toEmit,
+                    )
                 } catch (e: CargoConfigConflict) {
                     notify("Flint: .cargo/config.toml conflict", e.message ?: "", NotificationType.ERROR)
                     return
+                }
+
+                if (profile == FlintProfile.FLINT && profile.cargoName !in nativeProfiles) {
+                    if (closure.isEmpty()) {
+                        notify(
+                            "Flint: cannot debug",
+                            "The open SteelMC workspace root Cargo.toml does not define " +
+                                "[profile.${profile.cargoName}]. Debug requires it. Add e.g.:\n\n" +
+                                "[profile.${profile.cargoName}]\ninherits = \"dev\"\ndebug = true",
+                            NotificationType.ERROR,
+                        )
+                        return
+                    }
+                    when (val ir = CloneProfileInjector.inject(manager.managedDir, toEmit)) {
+                        is InjectResult.Conflict -> {
+                            notify("Flint: cannot debug", ir.message, NotificationType.ERROR)
+                            return
+                        }
+                        // Injected / NothingToDo / AlreadyDefined: profile is
+                        // resolvable on the clone — proceed.
+                        else -> {}
+                    }
                 }
             }
         }
@@ -129,19 +176,38 @@ class FlintRunConfiguration(
                 val target = ExecutionTargetManager.getInstance(project)
                     .getTargetsFor(rc.configuration)
                     .firstOrNull { it is RsDefaultProfileExecutionTarget && it.matchesProfile(profile) }
-                if (target == null) {
-                    notify(
+                when {
+                    target != null ->
+                        ExecutionEnvironmentBuilder.create(executor, rc)
+                            .target(target)
+                            .buildAndExecute()
+
+                    profile == FlintProfile.FLINT -> {
+                        // Profile target not enumerated yet (cold-index race).
+                        // The clone manifest already declares [profile.flint]
+                        // (ensured above), so pass --profile explicitly on the
+                        // default target. No double --profile: no profile
+                        // target is selected. --profile precedes the `--`
+                        // separator so it binds to `cargo test`.
+                        val cmd2 = CargoCommandLine(
+                            command = "test",
+                            workingDirectory = manager.managedDir,
+                            additionalArguments = listOf("--profile", profile.cargoName) + args,
+                            environmentVariables = env,
+                        )
+                        val rc2 = runManager.createCargoCommandRunConfiguration(
+                            cmd2, "Flint: ${mode.name.lowercase()} @ $version (${profile.cargoName})",
+                        )
+                        ExecutionEnvironmentBuilder.create(executor, rc2).buildAndExecute()
+                    }
+
+                    else -> notify(
                         "Flint: cannot run",
-                        "Cargo profile '${profile.cargoName}' is not available on the " +
-                            "flint-steel clone. Is the clone indexed? Does its Cargo.toml " +
-                            "define [profile.${profile.cargoName}]?",
+                        "Cargo profile '${profile.cargoName}' target is not available " +
+                            "on the flint-steel clone. Is the clone indexed?",
                         NotificationType.ERROR,
                     )
-                    return@invokeLater
                 }
-                ExecutionEnvironmentBuilder.create(executor, rc)
-                    .target(target)
-                    .buildAndExecute()
             } catch (e: Exception) {
                 thisLogger().warn("Flint delegate launch failed", e)
                 notify("Flint run failed", e.message ?: e.toString(), NotificationType.ERROR)
@@ -198,7 +264,6 @@ class FlintRunConfiguration(
     override fun writeExternal(element: Element) {
         super.writeExternal(element)
         JDOMExternalizerUtil.writeField(element, "mode", mode.name)
-        JDOMExternalizerUtil.writeField(element, "profile", profile.name)
         JDOMExternalizerUtil.writeField(element, "version", version)
         JDOMExternalizerUtil.writeField(element, "overrideTags", overrideTags)
         JDOMExternalizerUtil.writeField(element, "overrideTest", overrideTest)
@@ -213,8 +278,8 @@ class FlintRunConfiguration(
         super.readExternal(element)
         mode = runCatching { FlintMode.valueOf(JDOMExternalizerUtil.readField(element, "mode", "SELECTED")) }
             .getOrDefault(FlintMode.SELECTED)
-        profile = runCatching { FlintProfile.valueOf(JDOMExternalizerUtil.readField(element, "profile", "FLINT")) }
-            .getOrDefault(FlintProfile.FLINT)
+        // "profile" field retired (now executor-derived); old persisted value
+        // is intentionally ignored and dropped on next save.
         version = JDOMExternalizerUtil.readField(element, "version", "latest")
         overrideTags = JDOMExternalizerUtil.readField(element, "overrideTags", "")
         overrideTest = JDOMExternalizerUtil.readField(element, "overrideTest", "")

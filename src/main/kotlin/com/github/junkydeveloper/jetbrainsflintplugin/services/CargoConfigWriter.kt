@@ -23,7 +23,12 @@ object CargoConfigWriter {
      * @param steelCrates name -> absolute crate dir (from SteelWorkspaceResolver)
      * @param localFlintCorePath optional local flint-core override (blank = skip)
      */
-    fun write(cloneDir: Path, steelCrates: Map<String, Path>, localFlintCorePath: String) {
+    fun write(
+        cloneDir: Path,
+        steelCrates: Map<String, Path>,
+        localFlintCorePath: String,
+        profileBlocks: Map<String, String> = emptyMap(),
+    ) {
         val cargoDir = cloneDir.resolve(".cargo")
         val configFile = cargoDir.resolve("config.toml")
 
@@ -49,6 +54,11 @@ object CargoConfigWriter {
             sb.appendLine()
             sb.appendLine("[patch.\"$FLINT_CORE_GIT\"]")
             sb.appendLine("flint-core = { path = ${toml(localFlintCorePath)} }")
+        }
+
+        for ((_, block) in profileBlocks) {
+            sb.appendLine()
+            sb.appendLine(block.trim())
         }
 
         Files.createDirectories(cargoDir)
