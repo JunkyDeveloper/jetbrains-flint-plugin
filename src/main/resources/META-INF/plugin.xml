@@ -18,6 +18,8 @@
             displayName="Flint"/>
         <configurationType
             implementation="com.github.junkydeveloper.jetbrainsflintplugin.run.FlintRunConfigurationType"/>
+        <configurationType
+            implementation="com.github.junkydeveloper.jetbrainsflintplugin.run.FlintVizRunConfigurationType"/>
         <notificationGroup id="Flint" displayType="BALLOON"/>
     </extensions>
 </idea-plugin>

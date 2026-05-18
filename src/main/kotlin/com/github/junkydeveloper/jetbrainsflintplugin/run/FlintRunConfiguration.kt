@@ -136,8 +136,24 @@ class FlintRunConfiguration(
             if (overrideTags.isNotBlank()) env["FLINT_TAGS"] = overrideTags
             if (overridePattern.isNotBlank()) env["FLINT_PATTERN"] = overridePattern
         }
+        // PLAN-VIZ §4: blank flintVizUrl → fall back to a Flint Viz config's
+        // derived URL (defaults 127.0.0.1:7878). Non-blank setting already won
+        // via toEnv() above, so only fill when still unset.
+        if (!env.containsKey("FLINT_VIZ_URL")) {
+            env["FLINT_VIZ_URL"] = derivedVizUrl()
+        }
         env.putAll(extraEnv.filterValues { it.isNotBlank() })
         return env
+    }
+
+    /** Last-used (else first) Flint Viz config's URL, or the viz defaults. */
+    private fun derivedVizUrl(): String {
+        val rm = RunManager.getInstance(project)
+        val selected = rm.selectedConfiguration?.configuration as? FlintVizRunConfiguration
+        val viz = selected
+            ?: rm.allConfigurationsList.filterIsInstance<FlintVizRunConfiguration>().firstOrNull()
+        return viz?.derivedVizUrl()
+            ?: "http://${FlintVizRunConfiguration.DEFAULT_HOST}:${FlintVizRunConfiguration.DEFAULT_PORT}"
     }
 
     private fun notify(title: String, content: String, type: NotificationType) {
