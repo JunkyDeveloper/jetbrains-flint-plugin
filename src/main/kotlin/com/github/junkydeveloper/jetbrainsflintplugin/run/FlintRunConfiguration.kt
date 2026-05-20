@@ -60,6 +60,7 @@ class FlintRunConfiguration(
 
     /** Optional run-config overrides (blank = inherit menu defaults). */
     var overrideTags: String = ""
+    var selectedTags: MutableList<String> = mutableListOf()
     var overrideTest: String = ""
     var overridePattern: String = ""
     var extraEnv: MutableMap<String, String> = linkedMapOf()
@@ -231,7 +232,12 @@ class FlintRunConfiguration(
             env.remove("FLINT_TEST"); env.remove("FLINT_TAGS"); env.remove("FLINT_PATTERN")
         } else {
             if (overrideTest.isNotBlank()) env["FLINT_TEST"] = overrideTest
-            if (overrideTags.isNotBlank()) env["FLINT_TAGS"] = overrideTags
+            if (overrideTags.isNotBlank()) {
+                env["FLINT_TAGS"] = overrideTags
+            } else {
+                val selectedTagString = selectedTags.filter { it.isNotBlank() }.joinToString(",")
+                if (selectedTagString.isNotBlank()) env["FLINT_TAGS"] = selectedTagString
+            }
             if (overridePattern.isNotBlank()) env["FLINT_PATTERN"] = overridePattern
         }
         // PLAN-VIZ §4: blank flintVizUrl → fall back to a Flint Viz config's
@@ -266,6 +272,7 @@ class FlintRunConfiguration(
         JDOMExternalizerUtil.writeField(element, "mode", mode.name)
         JDOMExternalizerUtil.writeField(element, "version", version)
         JDOMExternalizerUtil.writeField(element, "overrideTags", overrideTags)
+        JDOMExternalizerUtil.writeField(element, "selectedTags", selectedTags.joinToString(","))
         JDOMExternalizerUtil.writeField(element, "overrideTest", overrideTest)
         JDOMExternalizerUtil.writeField(element, "overridePattern", overridePattern)
         JDOMExternalizerUtil.writeField(
@@ -282,6 +289,12 @@ class FlintRunConfiguration(
         // is intentionally ignored and dropped on next save.
         version = JDOMExternalizerUtil.readField(element, "version", "latest")
         overrideTags = JDOMExternalizerUtil.readField(element, "overrideTags", "")
+        selectedTags = JDOMExternalizerUtil.readField(element, "selectedTags", "")
+            .split(",")
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .distinct()
+            .toMutableList()
         overrideTest = JDOMExternalizerUtil.readField(element, "overrideTest", "")
         overridePattern = JDOMExternalizerUtil.readField(element, "overridePattern", "")
         extraEnv = JDOMExternalizerUtil.readField(element, "extraEnv", "")

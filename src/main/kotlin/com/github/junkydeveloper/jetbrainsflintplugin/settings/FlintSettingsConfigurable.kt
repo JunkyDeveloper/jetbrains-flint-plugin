@@ -4,6 +4,7 @@ import com.github.junkydeveloper.jetbrainsflintplugin.services.FlintCommandExcep
 import com.github.junkydeveloper.jetbrainsflintplugin.services.FlintIndexLocator
 import com.github.junkydeveloper.jetbrainsflintplugin.services.FlintIndexReader
 import com.github.junkydeveloper.jetbrainsflintplugin.services.FlintSteelManager
+import com.github.junkydeveloper.jetbrainsflintplugin.ui.SearchableTagSelector
 import com.intellij.ide.actions.RevealFileAction
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.ModalityState
@@ -12,8 +13,6 @@ import com.intellij.openapi.options.BoundConfigurable
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.DialogPanel
 import com.intellij.openapi.ui.Messages
-import com.intellij.ui.CheckBoxList
-import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.dsl.builder.AlignX
 import com.intellij.ui.dsl.builder.bindText
 import com.intellij.ui.dsl.builder.panel
@@ -41,23 +40,18 @@ class FlintSettingsConfigurable(private val project: Project) :
         FileChooserDescriptorFactory.createSingleFolderDescriptor()
             .withTitle("Select Local flint-core Crate")
 
-    private val tagList = CheckBoxList<String>()
+    private val tagSelector = SearchableTagSelector()
 
     private fun availableTags(): List<String> =
         (FlintIndexReader.readTags(manager.indexPath()) + state.selectedTags)
             .filter { it.isNotBlank() }.distinct().sorted()
 
     private fun populateTagList() {
-        tagList.clear()
-        for (tag in availableTags()) {
-            tagList.addItem(tag, tag, tag in state.selectedTags)
-        }
+        tagSelector.setTags(availableTags(), state.selectedTags)
     }
 
     private fun checkedTags(): List<String> =
-        (0 until tagList.itemsCount).mapNotNull { i ->
-            tagList.getItemAt(i)?.takeIf { tagList.isItemSelected(i) }
-        }
+        tagSelector.selectedTags()
 
     override fun createPanel(): DialogPanel {
         populateTagList()
@@ -104,7 +98,7 @@ class FlintSettingsConfigurable(private val project: Project) :
             }
             group("Tag selection") {
                 row {
-                    cell(JBScrollPane(tagList)).align(AlignX.FILL)
+                    cell(tagSelector).align(AlignX.FILL)
                         .comment("From the index; used as FLINT_TAGS when the field above is blank")
                 }
             }
@@ -134,7 +128,7 @@ class FlintSettingsConfigurable(private val project: Project) :
                     Messages.showErrorDialog(project, error.message ?: "$error", "Flint: Refresh Failed")
                 }
                 populateTagList()
-                if (error == null && tagList.itemsCount == 0) {
+                if (error == null && tagSelector.itemsCount == 0) {
                     Messages.showInfoMessage(
                         project,
                         "flint-index produced no tags. Check TEST_PATH (${state.testPath}) under the project base.",

@@ -1,5 +1,5 @@
 <!-- Plugin Configuration File. Read more: https://plugins.jetbrains.com/docs/intellij/plugin-configuration-file.html -->
-<idea-plugin>
+<idea-plugin require-restart="true">
     <id>com.github.junkydeveloper.jetbrainsflintplugin</id>
     <name>Flint Testing suite</name>
     <vendor>junkydeveloper</vendor>
@@ -44,8 +44,5 @@
         <listener
             class="com.github.junkydeveloper.jetbrainsflintplugin.uninstall.FlintAppLifecycle"
             topic="com.intellij.ide.AppLifecycleListener"/>
-        <listener
-            class="com.github.junkydeveloper.jetbrainsflintplugin.uninstall.FlintDynamicPluginListener"
-            topic="com.intellij.ide.plugins.DynamicPluginListener"/>
     </applicationListeners>
 </idea-plugin>

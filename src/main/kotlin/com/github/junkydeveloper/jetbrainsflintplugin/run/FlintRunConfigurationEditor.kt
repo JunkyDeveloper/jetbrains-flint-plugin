@@ -1,6 +1,8 @@
 package com.github.junkydeveloper.jetbrainsflintplugin.run
 
+import com.github.junkydeveloper.jetbrainsflintplugin.services.FlintIndexReader
 import com.github.junkydeveloper.jetbrainsflintplugin.services.FlintSteelManager
+import com.github.junkydeveloper.jetbrainsflintplugin.ui.SearchableTagSelector
 import com.intellij.execution.configuration.EnvironmentVariablesComponent
 import com.intellij.execution.configuration.EnvironmentVariablesData
 import com.intellij.openapi.application.ApplicationManager
@@ -23,6 +25,7 @@ class FlintRunConfigurationEditor(private val project: Project) :
         isEditable = true
     }
     private val tagsField = JBTextField()
+    private val tagSelector = SearchableTagSelector()
     private val testField = JBTextField()
     private val patternField = JBTextField()
     private val envComponent = EnvironmentVariablesComponent()
@@ -30,6 +33,7 @@ class FlintRunConfigurationEditor(private val project: Project) :
     private fun updateFilterEnablement() {
         val selected = modeCombo.selectedItem == FlintMode.SELECTED
         tagsField.isEnabled = selected
+        tagSelector.isEnabled = selected
         testField.isEnabled = selected
         patternField.isEnabled = selected
     }
@@ -47,6 +51,10 @@ class FlintRunConfigurationEditor(private val project: Project) :
             }
             group("Filter overrides (blank = inherit menu)") {
                 row("FLINT_TAGS:") { cell(tagsField).align(AlignX.FILL) }
+                row("Tag selection:") {
+                    cell(tagSelector).align(AlignX.FILL)
+                        .comment("Used as FLINT_TAGS when the field above is blank")
+                }
                 row("FLINT_TEST:") { cell(testField).align(AlignX.FILL) }
                 row("FLINT_PATTERN:") { cell(patternField).align(AlignX.FILL) }
             }
@@ -55,6 +63,7 @@ class FlintRunConfigurationEditor(private val project: Project) :
         // Populate the dropdown when the editor opens; stay silent on failure
         // (only an explicit Reload reports the error).
         loadVersions(interactive = false)
+        loadTags(emptyList())
         return p
     }
 
@@ -81,10 +90,19 @@ class FlintRunConfigurationEditor(private val project: Project) :
         }
     }
 
+    private fun loadTags(selectedTags: Collection<String>) {
+        val manager = FlintSteelManager.getInstance(project)
+        tagSelector.setTags(
+            FlintIndexReader.readTags(manager.indexPath()) + selectedTags,
+            selectedTags,
+        )
+    }
+
     override fun resetEditorFrom(s: FlintRunConfiguration) {
         modeCombo.selectedItem = s.mode
         versionCombo.selectedItem = s.version
         tagsField.text = s.overrideTags
+        loadTags(s.selectedTags)
         testField.text = s.overrideTest
         patternField.text = s.overridePattern
         envComponent.envData = EnvironmentVariablesData.create(s.extraEnv, true)
@@ -95,6 +113,7 @@ class FlintRunConfigurationEditor(private val project: Project) :
         s.mode = modeCombo.selectedItem as? FlintMode ?: FlintMode.SELECTED
         s.version = (versionCombo.selectedItem as? String)?.trim().orEmpty().ifBlank { "latest" }
         s.overrideTags = tagsField.text.trim()
+        s.selectedTags = tagSelector.selectedTags().toMutableList()
         s.overrideTest = testField.text.trim()
         s.overridePattern = patternField.text.trim()
         s.extraEnv = LinkedHashMap(envComponent.envData.envs)

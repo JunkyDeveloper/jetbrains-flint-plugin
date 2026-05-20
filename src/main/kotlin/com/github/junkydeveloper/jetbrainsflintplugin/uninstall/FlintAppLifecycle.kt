@@ -14,14 +14,20 @@ import com.intellij.ide.plugins.PluginStateListener
  */
 class FlintAppLifecycle : AppLifecycleListener {
     override fun appStarted() {
+        FlintUninstaller.retryPendingDeleteAsync()
+
         PluginInstaller.addStateListener(object : PluginStateListener {
             override fun install(descriptor: IdeaPluginDescriptor) {}
 
             override fun uninstall(descriptor: IdeaPluginDescriptor) {
                 if (FlintUninstaller.isSelf(descriptor)) {
-                    FlintUninstaller.cleanup()
+                    FlintUninstaller.cleanupAsync()
                 }
             }
         })
+    }
+
+    override fun beforeAppWillBeClosed(isRestart: Boolean) {
+        FlintUninstaller.cleanupBeforeShutdown()
     }
 }
