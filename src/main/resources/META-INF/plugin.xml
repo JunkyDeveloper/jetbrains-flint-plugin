@@ -3,7 +3,22 @@
     <id>com.github.junkydeveloper.jetbrainsflintplugin</id>
     <name>Flint Testing suite</name>
     <vendor>junkydeveloper</vendor>
-    <description>This is a base plugin for RustRover to use flint</description>
+    <description><![CDATA[
+        <p>
+            Flint Testing Suite brings the Flint testing workflow into RustRover and other JetBrains IDEs with Rust support.
+            It adds run configurations for running <code>flint-steel</code> benchmarks and serving the <code>flint-viz</code>
+            visualizer directly from the IDE.
+        </p>
+        <p>
+            The plugin manages a local Flint toolchain setup, exposes project settings for common Flint environment variables,
+            supports selected-tag and full-suite runs, and can refresh the Flint test index through the bundled indexer.
+        </p>
+        <ul>
+            <li>Run selected Flint tests or all benchmarks from a dedicated run configuration.</li>
+            <li>Launch the Flint Viz local HTTP UI from the IDE.</li>
+            <li>Configure <code>flint-steel</code>, <code>flint-core</code>, test paths, tags, patterns, and visualizer URLs under Tools | Flint.</li>
+        </ul>
+    ]]></description>
 
     <depends>com.intellij.modules.platform</depends>
     <depends>com.jetbrains.rust</depends>
