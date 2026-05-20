@@ -19,8 +19,8 @@ import java.security.MessageDigest
 class IndexerUnavailable(message: String) : RuntimeException(message)
 
 /**
- * Owns the bundled `flint-index` binary: extracts the vendored glibc x86-64
- * ELF from the plugin jar and runs it to (re)build the flint-core test index.
+ * Owns the bundled `flint-index` binary: extracts the vendored host-specific
+ * x86-64 executable from the plugin jar and runs it to (re)build the flint-core test index.
  * No PATH lookup — the bundled copy is always used. Unsupported host →
  * [IndexerUnavailable].
  */
@@ -31,13 +31,7 @@ class FlintIndexLocator(private val project: Project) {
 
     /** Extracted bundled binary path; throws on unsupported host. */
     fun resolve(): Path {
-        if (!(SystemInfo.isLinux && IndexerCpuArch.isX86_64())) {
-            throw IndexerUnavailable(
-                "The bundled flint-index binary only runs on Linux x86-64 " +
-                    "(this host: ${SystemInfo.OS_NAME} ${IndexerCpuArch.archName()}).",
-            )
-        }
-        return extractBundled()
+        return extractBundled(bundledBinary())
     }
 
     /** Run flint-index with cwd = [workDir], env = login env + settings.toEnv(). */
@@ -55,19 +49,31 @@ class FlintIndexLocator(private val project: Project) {
         }
     }
 
-    /** Extract `bin/flint-index` resource to the IDE system path; re-extract on sha drift. */
-    private fun extractBundled(): Path {
-        val target = managedIndexerDir().resolve("flint-index")
-        val resourceBytes = javaClass.getResourceAsStream("/bin/flint-index")?.readBytes()
-            ?: throw IndexerUnavailable("Bundled flint-index binary missing from plugin jar.")
+    private fun bundledBinary(): BundledIndexerBinary =
+        when {
+            SystemInfo.isLinux && IndexerCpuArch.isX86_64() -> BundledIndexerBinary("flint-index")
+            SystemInfo.isWindows && IndexerCpuArch.isX86_64() -> BundledIndexerBinary("flint-index.exe")
+            else -> throw IndexerUnavailable(
+                "Bundled flint-index support is Linux x86-64 and Windows x86-64 " +
+                    "(this host: ${SystemInfo.OS_NAME} ${IndexerCpuArch.archName()}).",
+            )
+        }
+
+    /** Extract the selected bundled resource to the IDE system path; re-extract on sha drift. */
+    private fun extractBundled(binary: BundledIndexerBinary): Path {
+        val target = managedIndexerDir().resolve(binary.fileName)
+        val resourceBytes = javaClass.getResourceAsStream("/bin/${binary.fileName}")?.readBytes()
+            ?: throw IndexerUnavailable("Bundled flint-index binary missing from plugin jar: /bin/${binary.fileName}.")
 
         val needsWrite = !Files.exists(target) || sha256(Files.readAllBytes(target)) != sha256(resourceBytes)
         if (needsWrite) {
             Files.createDirectories(target.parent)
             Files.write(target, resourceBytes)
-            runCatching {
-                Files.setPosixFilePermissions(target, PosixFilePermissions.fromString("rwxr-xr-x"))
-            }.onFailure { thisLogger().warn("chmod flint-index failed (continuing)", it) }
+            if (!SystemInfo.isWindows) {
+                runCatching {
+                    Files.setPosixFilePermissions(target, PosixFilePermissions.fromString("rwxr-xr-x"))
+                }.onFailure { thisLogger().warn("chmod flint-index failed (continuing)", it) }
+            }
         }
         return target
     }
@@ -83,6 +89,8 @@ class FlintIndexLocator(private val project: Project) {
             Path.of(PathManager.getSystemPath(), "flint-plugin", "flint-index")
     }
 }
+
+private data class BundledIndexerBinary(val fileName: String)
 
 /** Minimal arch check (avoids depending on a specific platform-util API). */
 private object IndexerCpuArch {

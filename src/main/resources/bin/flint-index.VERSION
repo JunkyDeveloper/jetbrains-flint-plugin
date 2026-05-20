@@ -1,1 +1,14 @@
-ebfc102
+flint-index vendored binaries
+source repo: /home/jonas/flint/flint-utils
+
+linux x86-64
+source git: ebfc1021f24b1d6373fef77732ac1346fd7a9a6f (2026-05-18)
+artifact: /home/jonas/flint/flint-utils/target/release/flint-index
+target: linux x86-64, glibc, dynamically linked
+sha256: fb3b91e0e9a7c689f66365ba7b2886422cc9cbd2fa56b8523cfca9b77242ac7d
+
+windows x86-64
+source git: cf14738896625c7c9b2ab31656f1848f3820397b (2026-05-18)
+artifact: /home/jonas/flint/flint-utils/target/x86_64-pc-windows-gnu/release/flint-index.exe
+target: windows x86-64, gnu
+sha256: 75be7e58cabc6bd6b01ff85ff053bfb69da2dad55bbf7edacb776f407e998455

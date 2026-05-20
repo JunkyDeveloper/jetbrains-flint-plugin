@@ -1,5 +1,14 @@
 flint-viz vendored binary
 source repo: github.com/FlintTestMC/FlintViz (/home/jonas/flint/FlintVisulizer)
+
+linux x86-64
 git: 20f72696ed97a2a97d8e03ca4b208f27f84e8a71 (2026-05-17)
+artifact: /home/jonas/flint/FlintVisulizer/target/release/flint-viz
 target: linux x86-64, glibc, dynamically linked
 sha256: ab11a3c298ee0ae9256d54105e968b877164f3af1753f89e0b68af1a42703ce1
+
+windows x86-64
+git: 58ace28791c1272ef3bb669b3a6c60db958b8afb (2026-05-21)
+artifact: /home/jonas/flint/FlintVisulizer/target/x86_64-pc-windows-gnu/release/flint-viz.exe
+target: windows x86-64, gnu
+sha256: 588c99ef5075a441b415045227d8cb40f34f9e328592a5f65df3ec6de4cebeef

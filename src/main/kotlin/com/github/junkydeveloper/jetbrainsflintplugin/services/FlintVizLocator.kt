@@ -28,42 +28,48 @@ sealed class VizExecutable {
 
 /**
  * Resolves the flint-viz executable: prefer a copy on $PATH, else extract the
- * bundled glibc x86-64 binary from the plugin jar. Unsupported host with
- * nothing on $PATH → [VizUnavailable].
+ * bundled host-specific x86-64 binary from the plugin jar. Unsupported host
+ * with nothing on $PATH → [VizUnavailable].
  */
 @Service(Service.Level.PROJECT)
 class FlintVizLocator(@Suppress("unused") private val project: Project) {
 
     fun resolve(): VizExecutable {
-        PathEnvironmentVariableUtil.findInPath("flint-viz")?.let {
+        val pathExecutableName = if (SystemInfo.isWindows) "flint-viz.exe" else "flint-viz"
+        PathEnvironmentVariableUtil.findInPath(pathExecutableName)?.let {
             return VizExecutable.PathBin(it.toPath())
         }
 
-        if (!(SystemInfo.isLinux && CpuArch.isX86_64())) {
-            throw VizUnavailable(
-                "flint-viz not found on PATH and the bundled binary only runs on " +
-                    "Linux x86-64 (this host: ${SystemInfo.OS_NAME} ${CpuArch.archName()}). " +
+        return VizExecutable.Bundled(extractBundled(bundledBinary()))
+    }
+
+    private fun bundledBinary(): BundledVizBinary =
+        when {
+            SystemInfo.isLinux && CpuArch.isX86_64() -> BundledVizBinary("flint-viz")
+            SystemInfo.isWindows && CpuArch.isX86_64() -> BundledVizBinary("flint-viz.exe")
+            else -> throw VizUnavailable(
+                "flint-viz not found on PATH and bundled support is Linux x86-64 and Windows x86-64 " +
+                    "(this host: ${SystemInfo.OS_NAME} ${CpuArch.archName()}). " +
                     "Install it (`cargo install --git https://github.com/FlintTestMC/FlintViz flint-viz`) " +
-                    "or put a `flint-viz` executable on your PATH.",
+                    "or put a compatible `flint-viz` executable on your PATH.",
             )
         }
 
-        return VizExecutable.Bundled(extractBundled())
-    }
-
-    /** Extract `bin/flint-viz` resource to the IDE system path; re-extract on sha drift. */
-    private fun extractBundled(): Path {
-        val target = managedVizDir().resolve("flint-viz")
-        val resourceBytes = javaClass.getResourceAsStream("/bin/flint-viz")?.readBytes()
-            ?: throw VizUnavailable("Bundled flint-viz binary missing from plugin jar.")
+    /** Extract the selected bundled resource to the IDE system path; re-extract on sha drift. */
+    private fun extractBundled(binary: BundledVizBinary): Path {
+        val target = managedVizDir().resolve(binary.fileName)
+        val resourceBytes = javaClass.getResourceAsStream("/bin/${binary.fileName}")?.readBytes()
+            ?: throw VizUnavailable("Bundled flint-viz binary missing from plugin jar: /bin/${binary.fileName}.")
 
         val needsWrite = !Files.exists(target) || sha256(Files.readAllBytes(target)) != sha256(resourceBytes)
         if (needsWrite) {
             Files.createDirectories(target.parent)
             Files.write(target, resourceBytes)
-            runCatching {
-                Files.setPosixFilePermissions(target, PosixFilePermissions.fromString("rwxr-xr-x"))
-            }.onFailure { thisLogger().warn("chmod flint-viz failed (continuing)", it) }
+            if (!SystemInfo.isWindows) {
+                runCatching {
+                    Files.setPosixFilePermissions(target, PosixFilePermissions.fromString("rwxr-xr-x"))
+                }.onFailure { thisLogger().warn("chmod flint-viz failed (continuing)", it) }
+            }
         }
         return target
     }
@@ -79,6 +85,8 @@ class FlintVizLocator(@Suppress("unused") private val project: Project) {
             Path.of(PathManager.getSystemPath(), "flint-plugin", "flint-viz")
     }
 }
+
+private data class BundledVizBinary(val fileName: String)
 
 /** Minimal arch check (avoids depending on a specific platform-util API). */
 private object CpuArch {

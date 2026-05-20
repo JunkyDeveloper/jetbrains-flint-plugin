@@ -24,7 +24,7 @@ Use it when working on SteelMC or Flint-based Rust projects and you want to run 
 - A Rust/Cargo toolchain available to the IDE process.
 - Access to the configured `flint-steel` repository.
 
-The plugin bundles Linux x86-64 helper binaries for `flint-index` and `flint-viz`. On other platforms, install compatible tools and make them available on `PATH` where supported.
+The plugin bundles Linux x86-64 and Windows x86-64 helper binaries for `flint-index` and `flint-viz`. On other platforms, install compatible tools and make them available on `PATH` where supported.
 
 ## Usage
 
