@@ -147,13 +147,8 @@ object FlintUninstaller {
         val log = thisLogger()
 
         runCatching {
-            val descriptors = ExecutionManager.getInstance(project)
-                .getRunningDescriptors { settings ->
-                    settings.configuration is FlintVizRunConfiguration
-                }
-
-            for (descriptor in descriptors) {
-                val handler = descriptor.processHandler ?: continue
+            for (handler in ExecutionManager.getInstance(project).getRunningProcesses()) {
+                if (handler.getUserData(FlintVizRunConfiguration.FLINT_VIZ_PROCESS_HANDLER) != true) continue
                 if (handler.isProcessTerminated || handler.isProcessTerminating) continue
 
                 handler.destroyProcess()
@@ -163,7 +158,7 @@ object FlintUninstaller {
                         handler.waitFor(5_000)
                     }
                     if (!handler.isProcessTerminated) {
-                        log.warn("flint-viz did not stop within timeout: ${descriptor.displayName}")
+                        log.warn("flint-viz did not stop within timeout")
                     }
                 }
             }

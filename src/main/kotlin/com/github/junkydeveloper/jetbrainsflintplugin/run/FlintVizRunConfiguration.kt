@@ -21,6 +21,7 @@ import com.intellij.execution.ExecutionResult
 import com.intellij.execution.configurations.CommandLineState
 import com.intellij.execution.filters.TextConsoleBuilderFactory
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.util.Key
 import com.intellij.openapi.util.JDOMExternalizerUtil
 import org.jdom.Element
 import java.net.InetSocketAddress
@@ -70,6 +71,7 @@ class FlintVizRunConfiguration(
         return object : CommandLineState(environment) {
             override fun startProcess(): ProcessHandler {
                 val handler = KillableProcessHandler(cmd)
+                handler.putUserData(FLINT_VIZ_PROCESS_HANDLER, true)
                 ProcessTerminatedListener.attach(handler)
                 return handler
             }
@@ -136,6 +138,7 @@ class FlintVizRunConfiguration(
     }
 
     companion object {
+        val FLINT_VIZ_PROCESS_HANDLER: Key<Boolean> = Key.create("FlintVizProcessHandler")
         const val DEFAULT_HOST = "127.0.0.1"
         const val DEFAULT_PORT = 7878
     }
