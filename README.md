@@ -18,6 +18,7 @@ Use it when working on SteelMC or Flint-based Rust projects and you want to run 
 - Tag refresh and tag selection backed by the bundled `flint-index` binary.
 - Environment mapping for `INDEX_NAME`, `DEFAULT_TAG`, `TEST_PATH`, `FLINT_TEST`, `FLINT_TAGS`, `FLINT_PATTERN`, and `FLINT_VIZ_URL`.
 
+Example video: [Small demo](https://youtu.be/zUzAHw6LACY)
 ## Requirements
 
 - A JetBrains IDE with Rust plugin support, such as RustRover.
